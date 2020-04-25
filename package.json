@@ -1,7 +1,7 @@
 {
-  "name": "mammoth",
+  "name": "pammoth",
   "version": "1.4.9",
-  "author": "Michael Williamson <mike@zwobble.org>",
+  "author": "Prashanth Pamidi <ninja@fundoocode.ninja>, Michael Williamson <mike@zwobble.org>",
   "description": "Convert Word documents from docx to simple HTML and Markdown",
   "keywords": [
     "docx",
@@ -14,7 +14,7 @@
   "main": "./lib/index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mwilliamson/mammoth.js.git"
+    "url": "https://github.com/prrashi/mammoth.js.git"
   },
   "dependencies": {
     "argparse": "~1.0.3",
