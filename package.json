@@ -1,20 +1,18 @@
 {
-  "name": "pammoth",
-  "version": "1.4.9",
-  "author": "Prashanth Pamidi <ninja@fundoocode.ninja>, Michael Williamson <mike@zwobble.org>",
+  "name": "pammoth-stylish",
+  "version": "0.5.0",
+  "author": "Prashanth Pamidi <ninja@fundoocode.ninja>, Michael Williamson <mike@zwobble.org>, Sergei Shevchenko <widrelk@gmail,com>",
   "description": "Convert Word documents from docx to simple HTML and Markdown",
   "keywords": [
     "docx",
     "html",
     "office",
-    "word",
-    "markdown",
-    "md"
+    "word"
   ],
   "main": "./lib/index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/prrashi/mammoth.js.git"
+    "url": "https://github.com/widrelk/jsDocxToHtml.gitnpm"
   },
   "dependencies": {
     "argparse": "~1.0.3",
@@ -34,7 +32,9 @@
     "hamjest": "2.13.0",
     "mocha": "~2.2.5",
     "temp": "~0.7.0",
-    "uglify-js": "~2.4.8"
+    "uglify-js": "~2.4.8",
+    "webpack": "^5.44.0",
+    "webpack-cli": "^4.7.2"
   },
   "browser": {
     "./lib/unzip.js": "./browser/unzip.js",
