@@ -1,8 +1,8 @@
 {
-  "name": "pammoth-stylish",
+  "name": "@ree_n/jsDocxToHtml",
   "version": "0.5.0",
-  "author": "Prashanth Pamidi <ninja@fundoocode.ninja>, Michael Williamson <mike@zwobble.org>, Sergei Shevchenko <widrelk@gmail,com>",
-  "description": "Convert Word documents from docx to simple HTML and Markdown",
+  "author": "Sergei Shevchenko <widrelk@gmail.com>",
+  "description": "Convert Word documents from docx to HTML",
   "keywords": [
     "docx",
     "html",
@@ -12,7 +12,7 @@
   "main": "./lib/index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/widrelk/jsDocxToHtml.gitnpm"
+    "url": "git+https://github.com/widrelk/jsDocxToHtml.git"
   },
   "dependencies": {
     "argparse": "~1.0.3",
@@ -48,5 +48,13 @@
     "test": "mocha 'test/**/*.tests.js'",
     "prepublish": "make mammoth.browser.min.js"
   },
-  "license": "BSD-2-Clause"
+  "license": "BSD-2-Clause",
+  "bugs": {
+    "url": "https://github.com/widrelk/jsDocxToHtml.gitnpm/issues"
+  },
+  "homepage": "https://github.com/widrelk/jsDocxToHtml.gitnpm#readme",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  }
 }
