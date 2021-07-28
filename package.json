@@ -9,7 +9,7 @@
     "office",
     "word"
   ],
-  "main": "./lib/index.js",
+  "main": "./src/index.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/widrelk/jsDocxToHtml.git"
@@ -22,6 +22,7 @@
     "path-is-absolute": "^1.0.0",
     "sax": "~1.1.1",
     "underscore": "~1.8.3",
+    "webpack": "^4.46.0",
     "xmlbuilder": "^10.0.0"
   },
   "devDependencies": {
@@ -33,7 +34,6 @@
     "mocha": "~2.2.5",
     "temp": "~0.7.0",
     "uglify-js": "~2.4.8",
-    "webpack": "^5.44.0",
     "webpack-cli": "^4.7.2"
   },
   "browser": {
@@ -46,7 +46,9 @@
   "scripts": {
     "pretest": "eslint lib test",
     "test": "mocha 'test/**/*.tests.js'",
-    "prepublish": "make mammoth.browser.min.js"
+    "prepublish": "make mammoth.browser.min.js",
+    "start": "webpack --mode development",
+    "build": "webpack --mode production"
   },
   "license": "BSD-2-Clause",
   "bugs": {
