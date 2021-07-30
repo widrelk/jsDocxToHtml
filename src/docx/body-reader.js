@@ -48,9 +48,10 @@ function BodyReader(options) {
     var complexFieldStack = [];
     var currentInstrText = [];
     var relationships = options.relationships;
-    var contentTypes = options.contentTypes;
-    var docxFile = options.docxFile;
-    var files = options.files;
+    // Относятся к картинкам
+    //var contentTypes = options.contentTypes;
+    //var docxFile = options.docxFile;
+    //var files = options.files;
     var numbering = options.numbering;
     var styles = options.styles;
 
@@ -235,8 +236,10 @@ function BodyReader(options) {
         "v:shape": readChildElements,
         "v:textbox": readChildElements,
         "w:txbxContent": readChildElements,
-        "wp:inline": readDrawingElement,
-        "wp:anchor": readDrawingElement,
+        // Эти теги отвечают за то, будет ли картинка в строке, или "плавающая". сейчас читается только в строке
+        // TODO: сделать поддержку "якоря"
+        //"wp:inline": readDrawingElement,
+        //"wp:anchor": readDrawingElement,
         "v:imagedata": readImageData,
         "v:group": readChildElements,
         "v:rect": readChildElements,
@@ -578,32 +581,6 @@ function BodyReader(options) {
         }
     }
 
-
-    function readTableStyle(element) {
-        return readStyle(element, "w:tblStyle", "Table", styles.findTableStyleById);
-    }
-
-
-    function readStyle(element, styleTagName, styleType, findStyleById) {
-        var messages = [];
-        var styleElement = element.first(styleTagName);
-        var styleId = null;
-        var name = null;
-        if (styleElement) {
-            styleId = styleElement.attributes["w:val"];
-            if (styleId) {
-                var style = findStyleById(styleId);
-                if (style) {
-                    name = style.name;
-                } else {
-                    messages.push(undefinedStyleWarning(styleType, styleId));
-                }
-            }
-        }
-        return elementResultWithMessages({styleId: styleId, name: name}, messages);
-    }
-
-
     var unknownComplexField = {type: "unknown"};
 
 
@@ -656,13 +633,6 @@ function BodyReader(options) {
                 noteId: noteId
             }));
         };
-    }
-
-
-    function readCommentReference(element) {
-        return elementResult(documents.commentReference({
-            commentId: element.attributes["w:id"]
-        }));
     }
 
 
@@ -867,55 +837,8 @@ function BodyReader(options) {
         }
     }
 
-    function calculateRowSpans(rows) {
-        var unexpectedNonRows = _.any(rows, function(row) {
-            return row.type !== documents.types.tableRow;
-        });
-        if (unexpectedNonRows) {
-            return elementResultWithMessages(rows, [warning(
-                "unexpected non-row element in table, cell merging may be incorrect"
-            )]);
-        }
-        var unexpectedNonCells = _.any(rows, function(row) {
-            return _.any(row.children, function(cell) {
-                return cell.type !== documents.types.tableCell;
-            });
-        });
-        if (unexpectedNonCells) {
-            return elementResultWithMessages(rows, [warning(
-                "unexpected non-cell element in table row, cell merging may be incorrect"
-            )]);
-        }
 
-        var columns = {};
-
-        rows.forEach(function(row) {
-            var cellIndex = 0;
-            row.children.forEach(function(cell) {
-                if (cell._vMerge && columns[cellIndex]) {
-                    columns[cellIndex].rowSpan++;
-                } else {
-                    columns[cellIndex] = cell;
-                    cell._vMerge = false;
-                }
-                cellIndex += cell.colSpan;
-            });
-        });
-
-        rows.forEach(function(row) {
-            row.children = row.children.filter(function(cell) {
-                return !cell._vMerge;
-            });
-            row.children.forEach(function(cell) {
-                delete cell._vMerge;
-            });
-        });
-
-        return elementResult(rows);
-    }
-
-
-    function readDrawingElement(element) {
+/*    function readDrawingElement(element) {
         var blips = element                                 // По сути, получает rId картинки
             .getElementsByTagName("a:graphic")
             .getElementsByTagName("a:graphicData")
@@ -987,6 +910,7 @@ function BodyReader(options) {
         return warning(
             type + " style with ID " + styleId + " was referenced but not defined in the document");
     }
+*/
 }
 
 
@@ -1003,6 +927,7 @@ function readNumberingProperties(element, numbering) {
     }
 }
 
+/*
 var supportedImageTypes = {
     "image/png": true,
     "image/gif": true,
@@ -1010,6 +935,7 @@ var supportedImageTypes = {
     "image/svg+xml": true,
     "image/tiff": true
 };
+*/
 
 var ignoreElements = {
     "office-word:wrap": true,

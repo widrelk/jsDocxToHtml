@@ -18,7 +18,8 @@ var numberingXml = require("./numbering-xml");
 var stylesReader = require("./styles-reader");
 var notesReader = require("./notes-reader");
 var commentsReader = require("./comments-reader");
-var Files = require("./files").Files;
+// Относится к картинкам
+//var Files = require("./files").Files;
 
 var DOCUMENT_XML_RELS = "word/_rels/document.xml.rels";
 var _ = require("underscore");
@@ -30,7 +31,8 @@ function read(docxFile, input) {
         contentTypes: readContentTypesFromZipFile(docxFile),
         partPaths: findPartPaths(docxFile),
         docxFile: docxFile,         // Содержит zip файл документа
-        files: new Files(input.path ? path.dirname(input.path) : null)
+        // Относится к картинкам
+        // files: new Files(input.path ? path.dirname(input.path) : null)
     }).also(function(result) {
         return {
             styles: readStylesFromZipFile(docxFile, result.partPaths.styles)
@@ -309,11 +311,12 @@ function readXmlFileWithBody(filename, options, func) {
     return readRelationshipsFromZipFile(options.docxFile).then(function(relationships) {
         var bodyReader = new createBodyReader({
             relationships: relationships,
-            contentTypes: options.contentTypes,
-            docxFile: options.docxFile,
             numbering: options.numbering,
-            styles: options.styles,
-            files: options.files
+            styles: options.styles
+            // Относятся к картинкам
+            //contentTypes: options.contentTypes,
+            //docxFile: options.docxFile,
+            //files: options.files
         });
         return readXmlFromZipFile(options.docxFile, filename)
             .then(function(xml) {
