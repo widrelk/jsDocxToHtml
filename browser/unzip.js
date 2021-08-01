@@ -1,5 +1,5 @@
-var promises = require("../lib/promises");
-var zipfile = require("../lib/zipfile");
+var promises = require("../src/promises");
+var zipfile = require("../src/zipfile");
 
 exports.openZip = openZip;
 

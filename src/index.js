@@ -5,35 +5,28 @@
 var _ = require("underscore");
 
 var docxReader = require("./docx/docx-reader");
-var readOptions = require("./options-reader").readOptions;
 var unzip = require("./unzip");
 
 exports.convertToHtml = convertToHtml;
 
-exports.images = require("./images");
-exports.transforms = require("./transforms");
-exports.underline = require("./underline");
-
 /**
  * Converts given .docx file into identical html string. Styles are inline applied from the document's styles.xml
  * @param {*} input Path, ArrayBuffer or File with .docx
- * @param {*} options Deprecated
  * @returns String with HTML representation of given file
  */
-function convertToHtml(input, options) {
-    options = readOptions(options);
-    
+function convertToHtml(input) {
+    if (!input) {
+        return new Promise((resolve, reject) => {
+            resolve({html: "", comments: []})
+        })
+    }
     return unzip.openZip(input)
         .then(function(docxFile) {
-            return docxReader.readStylesFromZipFile(docxFile, "word/styles.xml").then( function(styles) {   // Считываем стили отдельно
-                options["stylesReader"] = styles;
-                return docxReader.read(docxFile, input)
-                    .then(function(documentResult) {
-                        var html = makeHtml(documentResult)
-                        return({html: html, comments: documentResult.value["comments"]});
-
+            return docxReader.read(docxFile)
+                .then(function(documentResult) {
+                    var html = makeHtml(documentResult)
+                    return({html: html, comments: documentResult.value["comments"]});
                 });
-            });
         });
 }
 

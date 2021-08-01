@@ -18,21 +18,15 @@ var numberingXml = require("./numbering-xml");
 var stylesReader = require("./styles-reader");
 var notesReader = require("./notes-reader");
 var commentsReader = require("./comments-reader");
-// Относится к картинкам
-//var Files = require("./files").Files;
 
 var DOCUMENT_XML_RELS = "word/_rels/document.xml.rels";
 var _ = require("underscore");
 
-function read(docxFile, input) {
-    input = input || {};
-
+function read(docxFile) {
     return promises.props({
         contentTypes: readContentTypesFromZipFile(docxFile),
         partPaths: findPartPaths(docxFile),
         docxFile: docxFile,         // Содержит zip файл документа
-        // Относится к картинкам
-        // files: new Files(input.path ? path.dirname(input.path) : null)
     }).also(function(result) {
         return {
             styles: readStylesFromZipFile(docxFile, result.partPaths.styles)
@@ -84,7 +78,6 @@ function read(docxFile, input) {
 
             xmlFileReader({
                 filename: "word/footer" + i + ".xml",
-
                 readElement: function(element, target) {
                     var ftrsCount = ftrs.length;
                     for (var i = 0; i < ftrsCount; i++) {
@@ -137,7 +130,6 @@ function read(docxFile, input) {
 
             xmlFileReader({
                 filename: "word/header" + i + ".xml",
-
                 readElement: function(element, target) {
                     var hdrsCount = hdrs.length;
                     for (var i = 0; i < hdrsCount; i++) {
@@ -147,11 +139,8 @@ function read(docxFile, input) {
                                 docxFile: result.docxFile,
                                 styles: result.styles,
                             });
-                            try{
+
                             var val =  bodyReader.readXmlElements(element.children);
-                            } catch (error) {
-                                debugger;
-                            }
                             hdrs[i]["children"] = val.value;
                             break;
                         }
@@ -205,7 +194,8 @@ function read(docxFile, input) {
                 bodyReader: bodyReader,
                 notes: result.notes,
                 comments: result.comments,
-                styles:result.styles
+                styles:result.styles,
+                file: result.docxFile
             });
             return new Result({xmlResult: reader.convertXmlToDocument(xml).value.children, footNotes: result.footNotes, comments: result.comments, headers: result.headers, footers: result.footers}, {});
 
@@ -312,11 +302,8 @@ function readXmlFileWithBody(filename, options, func) {
         var bodyReader = new createBodyReader({
             relationships: relationships,
             numbering: options.numbering,
-            styles: options.styles
-            // Относятся к картинкам
-            //contentTypes: options.contentTypes,
-            //docxFile: options.docxFile,
-            //files: options.files
+            styles: options.styles,
+            docxFile: options.docxFile
         });
         return readXmlFromZipFile(options.docxFile, filename)
             .then(function(xml) {

@@ -188,7 +188,7 @@ function Image(options) {
         type: types.image,
         read: options.readImage,
         altText: options.altText,
-        contentType: options.contentType
+        path: options.path
     };
 }
 

@@ -1,13 +1,3 @@
-/*
-- Доделал readParagraphIndent: теперь есть значения по умолчанию и результат возвращается в pt
-- readParagraphProperties и readRunProperties теперь считывают "inline" стили и смешивают его
-со стилем из styles.xml. Изменена структура результата и есть значение по умолчанию
-- Теперь считывается lastRenderedPageBreak
-- readBooleanElement работает корректно
-
-остальное не трогал.
-*/
-
 exports.createBodyReader = createBodyReader;
 exports._readNumberingProperties = readNumberingProperties;
 
@@ -17,22 +7,17 @@ var documents = require("../documents");
 var Result = require("../results").Result;
 var warning = require("../results").warning;
 var uris = require("./uris");
-var styles;
 
 
 var findTagByNameInArray = require("./styles-reader").findTagByNameInArray;
 var readChildTagVal = require("./styles-reader").readChildTagVal;
 var readChildTagAttr = require("./styles-reader").readChildTagAttr;
-var readBooleanElement = require("./styles-reader").readBooleanElement;
-var readStyleProps = require("./styles-reader").readStyleElement;
-
 var readTableStyleProperties = require("./styles-reader").readTableStyleProperties;
 var readTableRowProperties = require("./styles-reader").readTableRowProperties;
 var readTableCellProperties = require("./styles-reader").readTableCellProperties;
 
 
 function createBodyReader(options) {
-    styles = options.styles;
     return {
         readXmlElement: function(element) {
             return new BodyReader(options).readXmlElement(element);
@@ -48,18 +33,13 @@ function BodyReader(options) {
     var complexFieldStack = [];
     var currentInstrText = [];
     var relationships = options.relationships;
-    // Относятся к картинкам
-    //var contentTypes = options.contentTypes;
-    //var docxFile = options.docxFile;
-    //var files = options.files;
     var numbering = options.numbering;
     var styles = options.styles;
+    var file = options.docxFile
 
-    // По какой-то причине, из run у которых стиль был добавлен внутри обработчика отдельно, все поля кроме styleId равны undefined
-    // TODO: Как-то это отладить
     function readXmlElements(elements) {
         var results = elements.map(readXmlElement);
-        return combineResults(results);                 // Там очень стрёмный js
+        return combineResults(results);
         
     }
 
@@ -238,7 +218,7 @@ function BodyReader(options) {
         "w:txbxContent": readChildElements,
         // Эти теги отвечают за то, будет ли картинка в строке, или "плавающая". сейчас читается только в строке
         // TODO: сделать поддержку "якоря"
-        //"wp:inline": readDrawingElement,
+        "wp:inline": readDrawingElement,
         //"wp:anchor": readDrawingElement,
         "v:imagedata": readImageData,
         "v:group": readChildElements,
@@ -838,7 +818,7 @@ function BodyReader(options) {
     }
 
 
-/*    function readDrawingElement(element) {
+    function readDrawingElement(element) {
         var blips = element                                 // По сути, получает rId картинки
             .getElementsByTagName("a:graphic")
             .getElementsByTagName("a:graphicData")
@@ -868,7 +848,7 @@ function BodyReader(options) {
             var imagePath = relationships.findTargetByRelationshipId(linkRelationshipId);
             return {
                 path: imagePath,
-                read: files.read.bind(files, imagePath)
+                read: files.read.bind(files, imagePath)     // Вот туточки и косяк. Нужны файлы. Но мб и не нужны
             };
         }
     }
@@ -889,28 +869,18 @@ function BodyReader(options) {
         var path = uris.uriToZipEntryName("word", relationships.findTargetByRelationshipId(relationshipId));
         return {
             path: path,
-            read: docxFile.read.bind(docxFile, path)
+            read: file.read.bind(file, path)
         };
     }
 
     function readImage(imageFile, altText) {
-        var contentType = contentTypes.findContentType(imageFile.path);
-
         var image = documents.Image({
             readImage: imageFile.read,
             altText: altText,
-            contentType: contentType
+            path: imageFile.path
         });
-        var warnings = supportedImageTypes[contentType] ?
-            [] : warning("Image of type " + contentType + " is unlikely to display in web browsers");
-        return elementResultWithMessages(image, warnings);
+        return elementResult(image);
     }
-
-    function undefinedStyleWarning(type, styleId) {
-        return warning(
-            type + " style with ID " + styleId + " was referenced but not defined in the document");
-    }
-*/
 }
 
 
@@ -978,10 +948,6 @@ function emptyResult() {
 
 function elementResult(element) {
     return new ReadResult(element);
-}
-
-function elementResultWithMessages(element, messages) {
-    return new ReadResult(element, null, messages);
 }
 
 function ReadResult(element, extra, messages) {
