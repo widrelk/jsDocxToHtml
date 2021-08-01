@@ -1,6 +1,6 @@
 {
   "name": "@ree_n/jsDocxToHtml",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "author": "Sergei Shevchenko <widrelk@gmail.com>",
   "description": "Convert Word documents from docx to HTML",
   "keywords": [
