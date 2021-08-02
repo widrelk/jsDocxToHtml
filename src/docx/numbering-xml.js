@@ -50,6 +50,17 @@ function readAbstractNum(element) {
     element.getElementsByTagName("w:lvl").forEach(function(levelElement) {
         const numFmt = levelElement.first("w:numFmt").attributes["w:val"];
         const indent = findTagByNameInArray((levelElement.first("w:pPr") || {children: []}).children, "w:ind")
+        let spcng = findTagByNameInArray((levelElement.first("w:pPr") || {children: []}).children, "w:spacing")
+        if (spcng) {
+            var a = spcng.attributes["w:after"];
+            var b = spcng.attributes["w:before"];
+            var l = spcng.attributes["w:line"];
+            spcng = {
+                after:  a ? parseInt(a, 10) / 20 : 0,
+                before: b ? parseInt(b, 10) / 20 : 0,
+                line: l ? parseInt(l, 10) / 20 : 0
+            };
+        } 
         levels[levelElement.attributes["w:ilvl"]] = {
             isOrdered: numFmt !== "bullet",
             numberingId: element.attributes["w:abstractNumId"],
@@ -59,6 +70,7 @@ function readAbstractNum(element) {
             lvlText: (levelElement.first("w:lvlText") || {attributes:{"w:val": null}}).attributes["w:val"],           // TODO: пофиксить не работающие спецсимволы
             lvlJc: (levelElement.first("w:lvlJc") || {attributes:{"w:val": null}}).attributes["w:val"],
             indent: readParagraphIndent(indent),
+            spacing: spcng, 
             //isLgl
             //lvlPicBulletId
             //lvlRestart

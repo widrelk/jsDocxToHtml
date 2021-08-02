@@ -87,7 +87,8 @@ function makeHtml(documentResult) {
                 pgIndx++;
                 page.length = 0;
 
-                par = makeAfterbreakParagraph(par, split.after);
+                par = makeAfterbreakParagraph(par, split.after);    // We use props of the originap paragraph and
+                                                                    // just reassigning children
 
                 split = splitChildrenByPageBreak(par);                      // It is possible to have one paragraph on multiple pages.                                                           
             }
@@ -110,7 +111,9 @@ function makeHtml(documentResult) {
     function splitChildrenByPageBreak(paragraph) {
         //TODO: реализовать keepNext/keepLines
         //TODO: возможно, есть способ сделать это лучше
-        var runs = paragraph.children;
+        var runs = _.filter(paragraph.children, (child) => {
+            return child.type != "bookmarkStart"
+        });
         if (!runs) {
             return({before: [], after: []});
         }
@@ -189,6 +192,9 @@ function makeHtml(documentResult) {
 
 
     function convertElementsToHtml(elements) {
+        if (elements.length == 0) {
+            return "&nbsp;"
+        }
         var result = ""
         elements.forEach(function(element) {
             result = result + elementToHtmlConverters[element.type](element);
@@ -199,19 +205,13 @@ function makeHtml(documentResult) {
 
     function convertPageToHtml(page) {
     try {
-        // Эти были получены экспериментально, подгоном под длину строки и количество строк исходного документа при одинаковом шрифте
-        //var result = "<div style=\"width:710px; height:1000px; padding: 76px 56px 76px 113px; margin-bottom: 5pt; background-color: lightblue;word-wrap: break-word\">";
-    /*
-        var result = "<div style=\"width:" + page.sectPr.pgSz.w + "pt; height: " + page.sectPr.pgSz.h + "pt; " + 
-        "padding: " + page.sectPr.pgMar.left +"pt " + page.sectPr.pgMar.top + "pt " + page.sectPr.pgMar.right + "pt " + page.sectPr.pgMar.bottom + "pt;" +
-        " margin-bottom: 5pt; background-color: lightblue\">";
-    */
         // TODO: в styles.xml можно откопать дефолтный стиль. Его нужно применить на страницу прям, шрифт и так далее
         // padding с "position: relative" позволяет отобразить нормально содержимое страницы и добавить отдельно header И footer   
-        var result = '<div style="width:' + page.sectPr.pgSz.w + 'pt; height: ' + page.sectPr.pgSz.h + 'pt; '
-                    + 'padding: ' + page.sectPr.pgMar.left +'pt ' + page.sectPr.pgMar.top + 'pt '
-                    + page.sectPr.pgMar.right + 'pt ' + page.sectPr.pgMar.bottom + 'pt; '
-                    + 'position: relative; font-family: Times New Roman; border: 1px solid; margin-bottom: 10px; background-color:white">';
+        var result = '<div style="width:' + page.sectPr.pgSz.w / 3 * 4 + 'px; height: ' + page.sectPr.pgSz.h / 3 * 4 + 'px; '
+                    + 'padding: ' + page.sectPr.pgMar.top / 3 * 4 +'px ' + page.sectPr.pgMar.right / 3 * 4 + 'px '
+                    + page.sectPr.pgMar.bottom / 3 * 4 + 'px ' + page.sectPr.pgMar.left / 3 * 4 + 'px; '
+                    + 'position: relative; font-family: Times New Roman; border: 1px solid; '
+                    + 'box-sizing: border-box; margin-bottom: 10px; background-color:white">';
 
         // Несколько странно, что нужно указывать padding right заново
         var header = _.find(page.sectPr.headers, function(hdr) {return hdr.headerType == "default"});
@@ -364,6 +364,18 @@ function makeHtml(documentResult) {
                     result += "text-indent: " + paragraph.numbering.indent.firstLine.toString() + "pt; ";
                 }
             }
+            if (paragraph.numbering.spacing) {
+                if (paragraph.numbering.spacing.before != 0) {
+                    result += "margin-top: " + paragraph.numbering.spacing.before.toString() + "pt; ";
+                }
+                if (paragraph.numbering.spacing.after != 0) {
+                    result += "margin-bottom: " + paragraph.numbering.spacing.after.toString() + "pt; ";
+                }
+        
+                if (paragraph.numbering.spacing.line != 0) {
+                    result += "line-height: " + paragraph.numbering.spacing.line.toString() + "pt; ";
+                }
+            }
             let currentNumbering = numberings[paragraph.numbering.numberingId]
             if (!currentNumbering) {
                 numberings[paragraph.numbering.numberingId] = {"0": 0}
@@ -464,9 +476,9 @@ function makeHtml(documentResult) {
                         addTag = "sup";
                     }
                     if (addTag) {
-                        result += "<" + addTag + ">" + run.text + "</" + addTag + ">";
+                        result += "<" + addTag + ">" + child.value + "</" + addTag + ">";
                     } else {
-                        result += run.text;
+                        result += child.value;
                     }
                     break
                 case "image":
@@ -499,14 +511,16 @@ function makeHtml(documentResult) {
             }
         }
         result += "\">"
+
         var tableTotalWidth = table.grid.reduce(function(sum, col) { return sum + col}, 0)
         var columnsWidth = table.grid.map(function(col) { return col / tableTotalWidth * 100})
+
         table.rows.forEach(function(tableRow) {
             var row = "<tr>";
 
             tableRow.cells.forEach(function(tableCell, cellIndex) {
                 var cell = "<td"
-                            + " width=\"" + table.grid[cellIndex]+ "pt\""
+                            + " width=\"" + table.grid[cellIndex] / 3 * 4 + "px\""
                             + " rowspan=\"" + tableCell.rowSpan.toString() 
                             + "\" colspan=\"" + tableCell.colSpan.toString()
                             + "\" style=\"";
@@ -533,9 +547,9 @@ function makeHtml(documentResult) {
                     //}
                 }
                     if (table.style.cellsPadd) {
-                        cell += "padding: " + table.style.cellsPadd.left + "pt "
-                                + table.style.cellsPadd.top + "pt " + table.style.cellsPadd.right + "pt "
-                                + table.style.cellsPadd.bottom + "pt; "
+                        cell += "padding: " + table.style.cellsPadd.top + "pt "
+                                + table.style.cellsPadd.right + "pt " + table.style.cellsPadd.bottom + "pt "
+                                + table.style.cellsPadd.left + "pt; "
                     }
                     cell += "\">";
                     cell += convertElementsToHtml(tableCell.children);

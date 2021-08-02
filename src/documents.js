@@ -71,18 +71,14 @@ function Paragraph(children, properties) {
 function Run(children, properties) {
     properties = properties || {};
 
-    var text = null;
     var lRPB = false;
     for (var i = 0; i < children.length; i++) {
-        if (children[i].type == "text"){
-            text = children[i].value;
-        } else if (children[i].type == "lastRenderedPageBreak") {
+        if (children[i].type == "lastRenderedPageBreak") {
             lRPB = true;
         }
     }
     return {
         type: types.run,
-        text: text,
         children: children,
         styleId: properties.styleId,
         font: properties.font,
