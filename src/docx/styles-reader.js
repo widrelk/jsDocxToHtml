@@ -1,19 +1,21 @@
-var _ = require('underscore');
+var _ = require('underscore')
 
-exports.readStylesXml = readStylesXml;
-exports.Styles = Styles;
-exports.defaultStyles = new Styles({}, {});
+exports.readStylesXml = readStylesXml
+exports.Styles = Styles
+exports.defaultStyles = new Styles({}, {})
 
-exports.readRunProperties = readRunProperties;
-exports.findTagByNameInArray = findTagByNameInArray;
-exports.readChildTagVal = readChildTagVal;
-exports.readBooleanElement = readBooleanElement;
-exports.readChildTagAttr = readChildTagAttr;
-exports.readStyleElement = readStyleElement;
+exports.readRunProperties = readRunProperties
+exports.findTagByNameInArray = findTagByNameInArray
+exports.readChildTagVal = readChildTagVal
+exports.readBooleanElement = readBooleanElement
+exports.readChildTagAttr = readChildTagAttr
+exports.readStyleElement = readStyleElement
 
-exports.readTableStyleProperties = readTableStyleProperties;
-exports.readTableRowProperties = readTableRowProperties;
-exports.readTableCellProperties = readTableCellProperties;
+exports.readTableStyleProperties = readTableStyleProperties
+exports.readTableRowProperties = readTableRowProperties
+exports.readTableCellProperties = readTableCellProperties
+
+exports.readParagraphIndent = readParagraphIndent
 
 function Styles(paragraphStyles, characterStyles, tableStyles, numberingStyles) {
     return {

@@ -54,7 +54,7 @@ function makeHtml(documentResult) {
     var headers = documentResult.value.headers
     var footers = documentResult.value.footers
     var numberings = {}                                         // Содержит вложенные объекты типа списка со счётчиками для уровней
-
+                                                                // По сути, обычный массив, но сделано так чтобы избежать ошибок с indexOutOfReach или как оно там
     var pages = splitToPages(documentResult.value.xmlResult)
     pages = addSectProps(pages)
     var result = convertElementsToHtml(pages)
@@ -271,7 +271,8 @@ function makeHtml(documentResult) {
                 result += "text-align: center; ";
             } else if (paragraph.alignment == "both") {
                 // TODO: text-justify поддерживается в chrome и firefox экспериментально. Надо б найти способ сделать это так, чтоб работало везде
-                result += "text-align: justify; text-justify: inter-word;";
+                // text-justify: inter-word;
+                result += "text-align: justify; ";
             }
         }
 
@@ -285,7 +286,7 @@ function makeHtml(documentResult) {
         if (paragraph.indent.hanging != 0) {
             result += "text-indent: " + (-1 * paragraph.indent.hanging).toString() + "pt; ";
         }
-        if (paragraph.indent.firstLine != 0) {                                // Done this way because if both specified firstLine is in control
+        if (paragraph.indent.firstLine != 0) {                                // Done in this order because if both specified firstLine is in control
             result += "text-indent: " + paragraph.indent.firstLine.toString() + "pt; ";
         }
         
@@ -312,7 +313,7 @@ function makeHtml(documentResult) {
             }
 
             if (rPr.font) {
-                result += "font-family: \'" + rPr.font + "\' ";
+                result += "font-family: \'" + rPr.font + "\'; ";
             } 
 
             if (rPr.isItalic) {
@@ -347,33 +348,51 @@ function makeHtml(documentResult) {
             result += color;
         }
 
-        result += "\">";
-
         if (paragraph.numbering) {
-
-            var currentNumbering = numberings[paragraph.numbering.numberingId]
+            if (paragraph.numbering.indent) {
+                if (paragraph.numbering.indent.left != 0) {
+                    result += "padding-left: " + paragraph.numbering.indent.left.toString() + "pt; ";
+                }
+                if (paragraph.numbering.indent.right != 0) {
+                    result += "padding-right: " + paragraph.numbering.indent.right.toString() + "pt; ";
+                }
+        
+                if (paragraph.numbering.indent.hanging != 0) {
+                    result += "text-indent: " + (-1 * paragraph.numbering.indent.hanging).toString() + "pt; ";
+                }
+                if (paragraph.numbering.indent.firstLine != 0) {                                // Done in this order because if both specified firstLine is in control
+                    result += "text-indent: " + paragraph.numbering.indent.firstLine.toString() + "pt; ";
+                }
+            }
+            let currentNumbering = numberings[paragraph.numbering.numberingId]
             if (!currentNumbering) {
-                numberings[paragraph.numbering.numberingId] = {}
+                numberings[paragraph.numbering.numberingId] = {"0": 0}
                 currentNumbering = numberings[paragraph.numbering.numberingId]
             }
 
-            if (!currentNumbering[paragraph.numbering.level]) {
-                currentNumbering[paragraph.numbering.level] = 0
-            }
+            if (currentNumbering[paragraph.numbering.level] == 0) {                         // Это несколько костыльно, но пришлось. Инкремент нужно делать до
+                currentNumbering[paragraph.numbering.level] = paragraph.numbering.start - 1 // начала замены, а не после, т.к. текущее значение используется в подпунктах.
+            }                                                                               // Если сделать инкремент после, то будет картина "пункт 1; подпункт 2.1"
             currentNumbering[paragraph.numbering.level]++
+
+            currentNumbering[paragraph.numbering.level + 1] = 0         // "зануляем" подуровень текущего уровня, чтобы не копилась пунумерация
             var pattern = paragraph.numbering.lvlText
             // TODO: сделать нормальную замену на основе numFmt для римских чисел и прочего
             for (var i = 0; i <= paragraph.numbering.level; i++) {
                 pattern = pattern.replace("%" + (i + 1).toString(), currentNumbering[i])
             }
 
-            result += pattern + " "             // TODO: тут нужно как-то сделать отступ, но это нельзя задать через "красную строку",
-                                                //  потому что она задаётся для всего абзаца
+            switch (paragraph.numbering.suff) {             // Отступ после номера идёт как наибольшая длина номера + символ отступа. 
+                case "tab":                                 //  Проблема в том, что наибольшую длину нельзя высчитать сразу, т.к. даже в формате
+                    pattern += "&nbsp;&nbsp;&nbsp;&nbsp;"   //  теоретически могут быть многозначные числа, что влияет на длину.
+                    break                                   // TODO: попробовать вставлять спецсимвол и для каждого списка высчитывать 
+                case "space":                               //  наибольшую длину и потом заменить на нужное количество nbsp
+                    pattern += "&nbsp;"                    
+                    break
+            }
         }
 
-        result = result + convertElementsToHtml(paragraph.children);
-
-        result += "</div>";
+        result += "\">" + (pattern ? pattern : "") + convertElementsToHtml(paragraph.children) + "</div>"
         return(result);
     } 
 

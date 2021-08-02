@@ -1,3 +1,5 @@
+const readParagraphIndent = require("./styles-reader.js").readParagraphIndent
+
 exports.readNumberingXml = readNumberingXml;
 exports.Numbering = Numbering;
 exports.defaultNumbering = new Numbering({});
@@ -43,26 +45,31 @@ function readAbstractNums(root) {
 }
 
 function readAbstractNum(element) {
-    var levels = {};
+    const levels = {};
     // Element description: http://officeopenxml.com/WPnumberingLvl.php
     element.getElementsByTagName("w:lvl").forEach(function(levelElement) {
-        var numFmt = levelElement.first("w:numFmt").attributes["w:val"];
+        const numFmt = levelElement.first("w:numFmt").attributes["w:val"];
+        const indent = findTagByNameInArray((levelElement.first("w:pPr") || {children: []}).children, "w:ind")
         levels[levelElement.attributes["w:ilvl"]] = {
             isOrdered: numFmt !== "bullet",
             numberingId: element.attributes["w:abstractNumId"],
             level: parseInt(levelElement.attributes["w:ilvl"], 10),
-            start: (levelElement.first("w:start") || {attributes:{"w:val": null}}).attributes["w:val"],
+            start: parseInt((levelElement.first("w:start") || {attributes:{"w:val": null}}).attributes["w:val"], 10),
             numFmt: (levelElement.first("w:numFmt") || {attributes:{"w:val": null}}).attributes["w:val"],
             lvlText: (levelElement.first("w:lvlText") || {attributes:{"w:val": null}}).attributes["w:val"],           // TODO: пофиксить не работающие спецсимволы
             lvlJc: (levelElement.first("w:lvlJc") || {attributes:{"w:val": null}}).attributes["w:val"],
+            indent: readParagraphIndent(indent),
             //isLgl
             //lvlPicBulletId
             //lvlRestart
-                                // TODO: сделать считывание стилей и их применение
-                                //pPr:,
-                                //pStyle:,
-                                //rPr,
-            suff: (levelElement.first("w:suff") || {attributes:{"w:val": null}}).attributes["w:val"]
+            //pStyle
+
+            //pPr В принципе, идентичны styles.xml, но на практике всегда буквально несколько полей для стандартных списков
+            //rPr   TODO: сделать полный функционал
+            suff: (levelElement.first("w:suff") || {attributes:{"w:val": "space"}}).attributes["w:val"]       // Символ между нумерацией и текстом
+                                                                                                            // Пока что не ясно, как оно определяется. В тесте было только space в одном из стилейб
+                                                                                                            // но на практике были немного разные отступы. indent тоже был разный при этом
+                                                                                                            // TODO: разобраться, от чего оно зависит
         };
     });
 
@@ -79,4 +86,13 @@ function readNums(root) {
         nums[numId] = {abstractNumId: abstractNumId};
     });
     return nums;
+}
+
+function findTagByNameInArray(array, name){
+    for (var index = 0; index < array.length; index++) {
+        if (array[index].name == name){
+            return(array[index]);
+        }
+    }
+    return(false);
 }
