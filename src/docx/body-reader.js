@@ -302,6 +302,9 @@ function BodyReader(options) {
                 sectType: sectType,
                 vAlign: vAlign
             }));
+        },
+        "w:sym": (element) => {
+            return elementResult({type: "symbol", font: element.attributes["w:font"], char: element.attributes["w:char"]})
         }
     };
 

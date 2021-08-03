@@ -492,6 +492,10 @@ function makeHtml(documentResult) {
                 case "commentReference":
                     result += '<a name="' + child.commentId+ '"/>'
                     break
+                case "symbol":
+                    let code = parseInt(child.char, 16) - parseInt("f000", 16)
+                    result += `<span style="font-family: ${ child.font }">&#${ code }</span>`
+                    break
                 }
         })
         
