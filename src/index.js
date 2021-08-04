@@ -20,14 +20,14 @@ function convertToHtml(input) {
             resolve({html: "", comments: []})
         })
     }
-    return unzip.openZip(input)
-        .then(function(docxFile) {
-            return docxReader.read(docxFile)
-                .then(function(documentResult) {
-                    var html = makeHtml(documentResult)
-                    return({html: html, comments: documentResult.value["comments"]});
-                });
-        });
+
+    return input.arrayBuffer()
+            .then(arrayBuffer => unzip.openZip(arrayBuffer))
+            .then(docxFile => docxReader.read(docxFile))
+            .then(documentResult => {
+                var html = makeHtml(documentResult)
+                return({html: html, comments: documentResult.value["comments"]});
+            })
 }
 
 
