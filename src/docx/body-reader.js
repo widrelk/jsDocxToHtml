@@ -900,15 +900,6 @@ function readNumberingProperties(element, numbering) {
     }
 }
 
-/*
-var supportedImageTypes = {
-    "image/png": true,
-    "image/gif": true,
-    "image/jpeg": true,
-    "image/svg+xml": true,
-    "image/tiff": true
-};
-*/
 
 var ignoreElements = {
     "office-word:wrap": true,

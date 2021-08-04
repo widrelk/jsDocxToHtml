@@ -68,31 +68,48 @@ function makeHtml(documentResult) {
      */
     // TODO: сделать так, чтобы обрабатывало ситуации с отсутствющим lastRenderedPageBreak
     function splitToPages(paragraphs) {
-        var paragraphsCpy = JSON.parse(JSON.stringify(paragraphs)); // Making a copy because sCBPB mutates data
+        let paragraphsCpy = JSON.parse(JSON.stringify(paragraphs)); // Making a copy because sCBPB mutates data
 
-        var result = [];
-        var page = [];
-        var pgIndx = 0;
-        for (var i = 0; i < paragraphsCpy.length; i++) {
-            var par = paragraphsCpy[i];
-            var split = splitChildrenByPageBreak(par);
+        let result = [];
+        let page = [];
+        let pgIndx = 0;
+        for (let i = 0; i < paragraphsCpy.length; i++) {
+            let par = paragraphsCpy[i];
 
-            while (split.after.length != 0) {
-                if (split.before.length != 0) {                     // We don't need to make an empty paragraph if break is in the first run
-                    par.children = split.before;                    // of the paragraph
-                    page.push(par);
+            if (par.type == "table") {
+                let split = splitTableByPageBreak(par)
+                
+                while (split.after) {
+                    if (split.before) {
+                        page.push(split.before)
+                    }
+                    result.push({type: "page", pageIndex: pgIndx, children: JSON.parse(JSON.stringify(page))})
+                    pgIndx++
+                    page.length = 0
+    
+                    par = split.after
+    
+                    split = splitTableByPageBreak(par)                                                   
                 }
+            } else {
+                let split = splitChildrenByPageBreak(par);
 
-                result.push({type: "page", pageIndex: pgIndx, children: JSON.parse(JSON.stringify(page))});
-                pgIndx++;
-                page.length = 0;
+                while (split.after.length != 0) {
+                    if (split.before.length != 0) {                     // We don't need to make an empty paragraph if break is in the first run
+                        par.children = split.before;                    // of the paragraph
+                        page.push(par);
+                    }
 
-                par = makeAfterbreakParagraph(par, split.after);    // We use props of the originap paragraph and
-                                                                    // just reassigning children
+                    result.push({type: "page", pageIndex: pgIndx, children: JSON.parse(JSON.stringify(page))});
+                    pgIndx++;
+                    page.length = 0;
 
-                split = splitChildrenByPageBreak(par);                      // It is possible to have one paragraph on multiple pages.                                                           
-            }
-            
+                    par = makeAfterbreakParagraph(par, split.after);    // We use props of the originap paragraph and
+                                                                        // just reassigning children
+
+                    split = splitChildrenByPageBreak(par);              // It is possible to have one paragraph on multiple pages.                                                           
+                }
+            }   
             page.push(par);  
         }
         result.push({type: "page", pageIndex: pgIndx, children: JSON.parse(JSON.stringify(page))});                                              // We need to push the last page separately, because there is no page with 
@@ -108,36 +125,93 @@ function makeHtml(documentResult) {
      * @param {*} paragraph
      * @returns {[], []} An object of two arrays. Paragraph children before run with break in first, other ones in second
      */
-    function splitChildrenByPageBreak(paragraph) {
+    function splitChildrenByPageBreak(element) {
         //TODO: реализовать keepNext/keepLines
-        //TODO: возможно, есть способ сделать это лучше
-        var runs = _.filter(paragraph.children, (child) => {
+        var children = _.filter(element.children, (child) => {
             return child.type != "bookmarkStart"
         });
-        if (!runs) {
+        if (!children) {
             return({before: [], after: []});
         }
 
-        runs = JSON.parse(JSON.stringify(runs));
+        children = JSON.parse(JSON.stringify(children));
         var breakIndex = -1;
         
-        for (var i = 0; i < runs.length; i++) {
-            if (runs[i].lastRenderedPageBreak){
+        for (var i = 0; i < children.length; i++) {
+            if (children[i].lastRenderedPageBreak){
                 breakIndex = i;
                 break;
             }
         }
 
         if (breakIndex == -1) {
-            return({before: runs, after: []});
+            return({before: children, after: []});
         }
 
-        var afterbreak = runs.splice(breakIndex);
+        var afterbreak = children.splice(breakIndex);
         afterbreak[0].lastRenderedPageBreak = false;
         
-        return({before: runs, after: afterbreak});
+        return({before: children, after: afterbreak});
     }
 
+    function splitTableByPageBreak(table) {
+            let tableHeader = table.rows[0]
+            let foundBreak = false
+            let rowCopy = null                                                                  // Used later if break is present
+
+            for(let row = 0; row < table.rows.length; row++) {
+                if ((table.rows[row].cells[0].children[0] || {type: ""}).type == "lastRenderedPageBreak") {     // If the first child of the first cell in a row is lRPB
+                    let afterbreak = table.rows.splice(row)                                     //  then this row is entirely on the new page. No other way of 
+                    
+                    let tableCpy = JSON.parse(JSON.stringify(table))
+                    tableCpy.rows = afterbreak
+                    if (table.style.stylingFlags["firstRow"]) {
+                        tableCpy.rows = after.splice(0,0, tableHeader)
+                    }   
+                    return({before: table, after: tableCpy})        
+                }
+
+                rowCopy = JSON.parse(JSON.stringify(table.rows[row]))                                 // Making a copy of the row, but with "empty" cells.
+                rowCopy.cells = rowCopy.cells.map((cell) => {                                   
+                    cell.children = []
+                    return cell
+                })
+
+                table.rows[row].cells = table.rows[row].cells.map((cell, cellIndex) => {
+                    let breakInCell = false
+                    cell.children = cell.children.map((cellChild) => {
+                        if (breakInCell) {
+                            rowCopy.cells[cellIndex].children.push(cellChild)
+                            return null
+                        }
+                        let breakResult = splitChildrenByPageBreak(cellChild)
+                        if (breakResult.after.length != 0) {
+                            foundBreak = true
+                            breakInCell = true
+                            rowCopy.cells[cellIndex].children = rowCopy.cells[cellIndex].children.concat(makeAfterbreakParagraph(cellChild, breakResult.after))
+                            return(makeAfterbreakParagraph(cellChild, breakResult.before))
+                        }
+                        return cellChild
+                    })
+                    cell.children = _.filter(cell.children, (child) => {return child})
+                    return cell
+                })
+
+                if (foundBreak) {
+                    let afterbreak = table.rows.splice(row + 1)
+
+                    let tableCpy = JSON.parse(JSON.stringify(table))
+                    tableCpy.rows = afterbreak
+                    tableCpy.rows.splice(0,0, rowCopy)
+                    /*if (table.style.stylingFlags["firstRow"]) {                             // Inserting table header to the next page if needed
+                        tableCpy.rows.splice(0,0, tableHeader)
+                    }*/
+                    return({before: table, after: tableCpy}) 
+                }
+            }
+            
+            return({before: table, after: null})
+    }
 
     function makeAfterbreakParagraph(paragraph, newChildren) {
         // На этом этапе поля со значениями undefintd внутри run пропадают.
@@ -297,8 +371,8 @@ function makeHtml(documentResult) {
             result += "margin-bottom: " + paragraph.spacing.after.toString() + "pt; ";
         }
 
-        if (paragraph.spacing.line != 0) {
-            result += "line-height: " + paragraph.spacing.line.toString() + "pt; ";
+        if (paragraph.spacing.line != 0) {      // TODO: сейчас работает не совсем как надо. Надо поправить http://officeopenxml.com/WPspacing.php
+            result += "line-height: " + paragraph.spacing.line + "pt; ";
         }
 
         var rPr = paragraph.rPr;

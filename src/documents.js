@@ -16,8 +16,6 @@ var types = exports.types = {
     note: "note",
     commentReference: "commentReference",
     comment: "comment",
-    table: "table",
-    tableRow: "tableRow",
     tableCell: "tableCell",
     break: "break",
     bookmarkStart: "bookmarkStart"
@@ -188,25 +186,6 @@ function Image(options) {
     };
 }
 
-function Table(children, properties) {
-    properties = properties || {};
-    return {
-        type: types.table,
-        children: children,
-        styleId: properties.styleId || null,
-        styleName: properties.styleName || null
-    };
-}
-
-function TableRow(children, options) {
-    options = options || {};
-    return {
-        type: types.tableRow,
-        children: children,
-        isHeader: options.isHeader || false
-    };
-}
-
 function TableCell(children, options) {
     options = options || {};
     return {
@@ -251,8 +230,6 @@ exports.Note = Note;
 exports.commentReference = commentReference;
 exports.comment = comment;
 exports.Image = Image;
-exports.Table = Table;
-exports.TableRow = TableRow;
 exports.TableCell = TableCell;
 exports.lineBreak = Break("line");
 exports.pageBreak = Break("page");
