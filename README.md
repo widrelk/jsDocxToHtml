@@ -63,16 +63,17 @@ An array of objects with a content of the document's comments.
 }
 # These ID's and classes are implemented into HTML result and can be useful
 ## ID's
-- Page: "pg" + page index
-- Page's content: "content_pg" + page index
-- Header: "header_pg" + page index
-- Footer: "footer_pg" + page index
-- Comment: "comment" + comment ID
+* Page: "pg" + page index
+* Page's content: "content_pg" + page index
+* Header: "header_pg" + page index
+* Footer: "footer_pg" + page index
+* Comment: "comment" + comment ID
 ## Classes
-- Comment: commentArea
+* Comment: commentArea
 
 # Known issues
 - Division by pages
+
 In OOXML, division by pages is passed to the application that works with the document
 and not directly presented in the .docx file. At the moment, division is made based on the
 lastRenderedPageBreak tag, that you can find inside of a run. This works in most cases,
@@ -82,6 +83,7 @@ but it is very difficult from my perspective.
 
 The simpler solution is to use [Element.clientHeight](https://developer.mozilla.org/en-US/docs/Web/API/Element/clientHeight) after you render the html, but at the moment, I don't know how to correctly implement it here.
 - Headers display
+
 For correct display of the headers some additional work is required.
 Header's height is stated nowhere inside of the document, just like with division by pages, all work
 is done by the application.
@@ -105,21 +107,26 @@ and add margin-top for the content. Here is an example for use with React:
 Also, sometimes there is a blank header with w:std tag in xml, but in Word header is in place. Looks like
 it is somehow imported or inherited. Currently not supported.
 - Tables width in footers of landscape pages
+
 In OOXML, [table width](http://officeopenxml.com/WPtable.php) defenition is a little bit a mess. In short, it defined in table
 properties, but also can be overwritten by column width sometimes, and so on.
 In my tests, landscape tables works just fine, but when it comes to tables in footers, if rendered with
 column width, stated in xml file, the resulted table often does not match with what you can see in Word.
 Correct behaviour in this case is unknown for me.
 - Table page breaks
+
 Sometimes, pagebreaks inside of a table row are inconsistent. This can cause some content of a row to stay
 on the previous page, while in Word it is transfered to the next page and so on.
 - Underline styles
+
 OOXML has a lot more underline options than HTML. At the moment, not all options are supported.
 - Page numbering
+
 According to [documentation](http://officeopenxml.com/WPSectionPgNumType.php), page numbering stated in the section properties,
 but in my tests, a document with numberings in Microsoft Word did not have this tag stated anywhere.
 Therefore, correct behavior in this case is unknown to me. Page numberings are not supported at the moment.
 - Line height
+
 Looks like line height is calculated differently for OOXML and HTML. Need further research.
 At the moment results in footer overlapping with page content (basically just takes up more space), and similar issues.
 ## Acknowledgements
