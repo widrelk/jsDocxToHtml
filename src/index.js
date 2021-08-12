@@ -1,20 +1,15 @@
-/*
-- Убраны лишние шаги в конвертере
-- Написан свой преобразователь в HTML
-*/
-var _ = require("underscore");
+let _ = require("underscore");
 
-var docxReader = require("./docx/docx-reader");
-var unzip = require("./unzip");
-
-exports.convertToHtml = convertToHtml;
+let docxReader = require("./docx/docx-reader");
+let unzip = require("./unzip");
 
 /**
- * Converts given .docx file into identical html string. Styles are inline applied from the document's styles.xml
+ * Converts given .docx file into identical html string. Styles applied inline to the html tags from the document's styles.xml
+ * Additional tuning for headers is required
  * @param {*} input Path, ArrayBuffer or File with .docx
  * @returns String with HTML representation of given file
  */
-function convertToHtml(input) {
+const convertToHtml = (input) => {
     if (!input) {
         return new Promise((resolve, reject) => {
             resolve({html: "", comments: []})
@@ -25,40 +20,20 @@ function convertToHtml(input) {
             .then(arrayBuffer => unzip.openZip(arrayBuffer))
             .then(docxFile => docxReader.read(docxFile))
             .then(documentResult => {
-                var html = makeHtml(documentResult)
+                let html = makeHtml(documentResult)
+                htmlCopy = html
                 return({html: html, comments: documentResult.value["comments"]});
             })
 }
 
 
-function makeHtml(documentResult) {
-
-    var elementToHtmlConverters = {
-        "page": convertPageToHtml,
-        "paragraph": convertParagraphToHtml,
-        "run": convertRunToHtml,
-        "table": convertTable,
-        "hyperlink": function(hyperLink) {
-            var result = "<a href=\"" + toString(hyperLink.href) + "\">" + convertElementsToHtml(hyperLink.children) +"<a>";
-            return(result)
-        },
-        "bookmarkStart": function(bookmark) {return ""},
-        "commentRangeStart": function(element) {
-            return('<span class="commentArea" id="' + element.commentId + '" key="' + element.commentId + '">')
-        },
-        "commentRangeEnd": function(element) {
-            return("</span>")
-        },
-        "sectPr": function(sectPr) {return ""}                  // Заглушка для тега w:sectPr
-    }
-    var headers = documentResult.value.headers
-    var footers = documentResult.value.footers
-    var numberings = {}                                         // Содержит вложенные объекты типа списка со счётчиками для уровней
+const makeHtml = (documentResult) => {
+    let headers = documentResult.value.headers
+    let footers = documentResult.value.footers
+    let numberings = {}                                         // Содержит вложенные объекты типа списка со счётчиками для уровней
                                                                 // По сути, обычный массив, но сделано так чтобы избежать ошибок с indexOutOfReach или как оно там
-    var pages = splitToPages(documentResult.value.xmlResult)
+    let pages = splitToPages(documentResult.value.xmlResult)
     pages = addSectProps(pages)
-    var result = convertElementsToHtml(pages)
-    return(result)
 
     /**
      * Walks trough paragraphs array and searches for lastRenderedPageBreak inside of the runs.
@@ -67,6 +42,7 @@ function makeHtml(documentResult) {
      * @returns {[]} array of "pages" that contains given paragraphs in the correct groups
      */
     // TODO: сделать так, чтобы обрабатывало ситуации с отсутствющим lastRenderedPageBreak
+    //      Для этого скорее всего необходимо использовать element.clientHeight() https://developer.mozilla.org/en-US/docs/Web/API/Element/clientHeight
     function splitToPages(paragraphs) {
         let paragraphsCpy = JSON.parse(JSON.stringify(paragraphs)); // Making a copy because sCBPB mutates data
 
@@ -116,18 +92,18 @@ function makeHtml(documentResult) {
         pgIndx++;                                                                //  break to trigger push inside of the cycle
         return(result);                                                 
     }
-    // Не работает с bookmarkStart!!!
-    // TODO: пофиксить
+    // TODO: Не работает с bookmarkStart? Вроде и работает, надо протестить
     /**
-     * Split children of a given paragraph. Split point is a first run with true lastRenderedPageBreak
+     * Splits children of a given paragraph. Split point is a first run with true lastRenderedPageBreak
      * property. Split point is a part of afterBreak array.
      * IMPORTANT: modifies lastRenderedPageBreak property of the runs: lRPB = false.
+     * TODO: lRPB is a child of the run. Additional property is not needed
      * @param {*} paragraph
-     * @returns {[], []} An object of two arrays. Paragraph children before run with break in first, other ones in second
+     * @returns {[], []} An object of two arrays. Paragraph children before run with break in first, others in second
      */
     function splitChildrenByPageBreak(element) {
         //TODO: реализовать keepNext/keepLines
-        var children = _.filter(element.children, (child) => {
+        let children = _.filter(element.children, (child) => {
             return child.type != "bookmarkStart"
         });
         if (!children) {
@@ -135,9 +111,9 @@ function makeHtml(documentResult) {
         }
 
         children = JSON.parse(JSON.stringify(children));
-        var breakIndex = -1;
+        let breakIndex = -1;
         
-        for (var i = 0; i < children.length; i++) {
+        for (let i = 0; i < children.length; i++) {
             if (children[i].lastRenderedPageBreak){
                 breakIndex = i;
                 break;
@@ -148,12 +124,20 @@ function makeHtml(documentResult) {
             return({before: children, after: []});
         }
 
-        var afterbreak = children.splice(breakIndex);
+        let afterbreak = children.splice(breakIndex);
         afterbreak[0].lastRenderedPageBreak = false;
         
         return({before: children, after: afterbreak});
     }
 
+    /**
+     * Splits given table by lastRenderedPageBreak inside of a row.
+     * Creates a new row for afterbreak table with paragraphs of a row after lastRenderedPageBreak tag.
+     * These paragraphs are removed from the original row
+     * TODO: copy table header to the afterbreak table
+     * @param {*} table 
+     * @returns {table, table} An object of two tables. First contains a table before break, second contains remaining table
+     */
     function splitTableByPageBreak(table) {
             let tableHeader = table.rows[0]
             let foundBreak = false
@@ -216,7 +200,7 @@ function makeHtml(documentResult) {
     function makeAfterbreakParagraph(paragraph, newChildren) {
         // На этом этапе поля со значениями undefintd внутри run пропадают.
         // С одной стороны, это ни на что не влияет, с другой - странно
-        var paragraphCpy = JSON.parse(JSON.stringify(paragraph));
+        let paragraphCpy = JSON.parse(JSON.stringify(paragraph));
 
         paragraphCpy.indent.firstLine = 0;                              // Paragraph's continuation will not have any firstline or hanging indent
         paragraphCpy.indent.hanging = 0;
@@ -230,13 +214,13 @@ function makeHtml(documentResult) {
      * Looks through pages children for sectPr elements and then adds this element
      * to the pages roots according to the section's ranges
      * @param {*} pages 
-     * @returns 
+     * @returns {*} modified pages with added section properties elements
      */
     function addSectProps(pages) {
-        var sections = [];
-        var sectFirstPageIndex = 0;
+        let sections = [];
+        let sectFirstPageIndex = 0;
 
-        for (var i = 0; i < pages.length; i++) {            // перебор страниц
+        for (let i = 0; i < pages.length; i++) {            // перебор страниц
             pages[i].children.forEach(function(pageElem) {  // Перебор элементов страницы
                 if (pageElem.sectPr) {
                     section = JSON.parse(JSON.stringify(pageElem.sectPr));
@@ -256,7 +240,7 @@ function makeHtml(documentResult) {
         };
 
         sections.forEach(function(section) {
-            for (var i = section.start; i <= section.stop; i++) {
+            for (let i = section.start; i <= section.stop; i++) {
                 pages[i]["sectPr"] = section;               // Возможно, для оптимизации по памяти стоит просто хранить секции где-то отдельно и на месте доставать.
                                                             // TODO: проверить
             }
@@ -269,7 +253,7 @@ function makeHtml(documentResult) {
         if (elements.length == 0) {
             return "&nbsp;"
         }
-        var result = ""
+        let result = ""
         elements.forEach(function(element) {
             result = result + elementToHtmlConverters[element.type](element);
         })
@@ -278,63 +262,68 @@ function makeHtml(documentResult) {
 
 
     function convertPageToHtml(page) {
-    try {
         // TODO: в styles.xml можно откопать дефолтный стиль. Его нужно применить на страницу прям, шрифт и так далее
-        // padding с "position: relative" позволяет отобразить нормально содержимое страницы и добавить отдельно header И footer   
-        var result = '<div style="width:' + page.sectPr.pgSz.w / 3 * 4 + 'px; height: ' + page.sectPr.pgSz.h / 3 * 4 + 'px; '
-                    + 'padding: ' + page.sectPr.pgMar.top / 3 * 4 +'px ' + page.sectPr.pgMar.right / 3 * 4 + 'px '
-                    + page.sectPr.pgMar.bottom / 3 * 4 + 'px ' + page.sectPr.pgMar.left / 3 * 4 + 'px; '
-                    + 'position: relative; font-family: Times New Roman; border: 1px solid; '
-                    + 'box-sizing: border-box; margin-bottom: 10px; background-color:white">';
-
-        // Несколько странно, что нужно указывать padding right заново
-        var header = _.find(page.sectPr.headers, function(hdr) {return hdr.headerType == "default"});
+        // Creating page itself
+        let result = `<div id="pg${page.pageIndex}" style="width: ${page.sectPr.pgSz.w / 3 * 4}px; `
+                        + `height: ${page.sectPr.pgSz.h / 3 * 4}px; `
+                        + `padding: 0 ${page.sectPr.pgMar.right / 3 * 4}px `
+                        + `${page.sectPr.pgMar.bottom / 3 * 4}px ${page.sectPr.pgMar.left / 3 * 4}px; `
+                        + "position: relative; font-family: Times New Roman; border: 1px solid; "
+                        + 'box-sizing: border-box; margin-bottom: 10px; background-color:white">';
+        // Adding page footer
+        let footer = _.find(page.sectPr.footers, function(footer) {return footer.footerType == "default"});
         if (page.pageIndex == 0) {
-            var firstHeader = _.find(page.sectPr.headers, function(header) {return header.headerType == "first"});
-            if (firstHeader) {
-                header = firstHeader;
-            }
-        }
-        if(header) {
-            header = _.find(headers, function(header) {return header.id == header.id})
-            result += '<div style="position: absolute; top: ' + page.sectPr.pgMar.header + "pt; "
-                    + "padding-right: " + page.sectPr.pgMar.right + "pt"  
-                    + ' ">' + convertElementsToHtml(header.children) + "</div>";
-        }
-
-        var footer = _.find(page.sectPr.footers, function(footer) {return footer.footerType == "default"});
-        if (page.pageIndex == 0) {
-            var firstFooter = _.find(page.sectPr.footers, function(footer) { return footer.footerType == "first" });
+            let firstFooter = _.find(page.sectPr.footers, function(footer) { return footer.footerType == "first" });
             if (firstFooter) {
                 footer = firstFooter;
+            }
+        } else if (page.pageIndex + 1 % 2 == 0) {
+            let evenFooter = _.find(page.sectPr.footers, function(footer) {return footer.footerType == "even"});
+            if (evenFooter) {
+                footer = evenFooter;
             }
         }
         if (footer) {
             footer = _.find(footers, function(ftr) { return ftr.id == footer.id });
-            result += "<div style=\"position: absolute; bottom: " + page.sectPr.pgMar.footer + "pt; " 
-                    + "\">"
-                    + convertElementsToHtml(footer.children) + "</div>";
+            result += `<div id="footer_pg${page.pageIndex}" style="position: absolute; `
+                        + `bottom: 0; margin-bottom: ${page.sectPr.pgMar.footer}pt">`
+                        + convertElementsToHtml(footer.children) + "</div>";
         }
         
-
+        // Adding page header
+        let header = _.find(page.sectPr.headers, function(hdr) {return hdr.headerType == "default"});
+        if (page.pageIndex == page.sectPr.start) {
+            let firstHeader = _.find(page.sectPr.headers, function(header) {return header.headerType == "first"});
+            if (firstHeader) {
+                header = firstHeader;
+            }
+        } else if (page.pageIndex + 1 % 2 == 0) {
+            let evenHeader = _.find(page.sectPr.headers, function(header) {return header.headerType == "even"});
+            if (evenHeader) {
+                header = evenHeader;
+            }
+        }
+        if(header) {
+            header = _.find(headers, function(hdr) {return hdr.id == header.id})
+            result += `<div id="header_pg${page.pageIndex}" style="position: absolute; top: 0; margin-top:${page.sectPr.pgMar.header}pt; `
+                    + `padding-right:${page.sectPr.pgMar.right}pt;">`  
+                    + convertElementsToHtml(header.children) + "</div>";
+        }
+        result = result + `<div id="content_pg${page.pageIndex}">`;
         page.children.forEach( function(child) {
-            var converter = elementToHtmlConverters[child.type];
+            let converter = elementToHtmlConverters[child.type];
             if (converter) {
                 result = result + converter(child);
             }
         });
-
-        result = result + "</div>";
+        result = result + "</div></div>";
         return(result);
-    }catch (error) {
-        debugger;
-    }
     }
 
 
-    function convertParagraphToHtml(paragraph) {
+    const convertParagraphToHtml = (paragraph) => {
         //word-wrap: break-word;
-        var result = "<div style=\"";
+        let result = "<div style=\"";
 
         if (paragraph.alignment) {
             if (paragraph.alignment == "right") {
@@ -375,11 +364,10 @@ function makeHtml(documentResult) {
             result += "line-height: " + paragraph.spacing.line + "pt; ";
         }
 
-        var rPr = paragraph.rPr;
+        let rPr = paragraph.rPr;
         if (rPr) {
-            var color = "";
             if (rPr.color) {
-                color = 'color: #' + rPr.color + '; ';
+                result += 'color: #' + rPr.color + '; ';
             }
 
             if (rPr.fontSize) {
@@ -399,7 +387,7 @@ function makeHtml(documentResult) {
 
             // TODO: можно разбить название на слова и обработать отдельно double и так далее
             if (rPr.underline) {  
-                var type = rPr.underline;
+                let type = rPr.underline;
                 if (type == "single") {
                     type = "";
                 }
@@ -417,10 +405,6 @@ function makeHtml(documentResult) {
                 result += "text-decoration-line: double line-trough; text-decoration-style: double";
             }       
         }   
-
-        if (color != "") {
-            result += color;
-        }
 
         if (paragraph.numbering) {
             if (paragraph.numbering.indent) {
@@ -464,7 +448,7 @@ function makeHtml(documentResult) {
             currentNumbering[paragraph.numbering.level + 1] = 0         // "зануляем" подуровень текущего уровня, чтобы не копилась пунумерация
             var pattern = paragraph.numbering.lvlText
             // TODO: сделать нормальную замену на основе numFmt для римских чисел и прочего
-            for (var i = 0; i <= paragraph.numbering.level; i++) {
+            for (let i = 0; i <= paragraph.numbering.level; i++) {
                 pattern = pattern.replace("%" + (i + 1).toString(), currentNumbering[i])
             }
 
@@ -482,21 +466,23 @@ function makeHtml(documentResult) {
         return(result);
     } 
 
+    /**
+     * Converts given run into html code
+     * @param {*} run 
+     * @returns {string} html
+     */
+    const convertRunToHtml = (run) => {
+        let result = '<span style="';
 
-    function convertRunToHtml(run) {
-    try {
-        var result = "<span ";
-        result += "style=\"";
         if (run.color) {
-            result += "color: #" + run.color + "; ";
+            result += `color: #${run.color}; `;
         }
-        var fontSize = fontSize;
         if (run.fontSize) {
-            result += "font-size: " + run.fontSize.toString() + "px; ";
+            result += `font-size: ${run.fontSize.toString()}px; `;
         }
 
         if (run.font) {
-            result += "font-family: \'" + run.font + "\' ";
+            result += `font-family:'${run.font}'; `;
         } 
 
         if (run.isItalic) {
@@ -512,15 +498,14 @@ function makeHtml(documentResult) {
             } else {
                 result += "font-weight: bold; ";
             }
-
         }
 
         if (run.underline) {
-            var type = run.underline;
+            let type = run.underline;
             if (type == "single") {
                 type = "";
             }
-            result += "text-decoration: underline " + type;
+            result += `text-decoration: underline ${type}`;
             if (run.underlineColor) {
                 result += run.underlineColor;
             }
@@ -531,40 +516,41 @@ function makeHtml(documentResult) {
             result += "text-decoration-line: line-through; ";
         }
         if (run.isDStrikethrough) {
-            result += "text-decoration-line: double line-trough; text-decoration-style: double";
+            result += "text-decoration-line: double line-trough; text-decoration-style: double; ";
         }
 
         if (run.highlight) {
-            result += "background-color: " + run.highlight + "; ";
+            result += `background-color: ${run.highlight}; `;
         }
 
-        result += "\">";
+        result += '">';
 
         run.children.forEach(function(child) {
             switch (child.type) {
                 case "text":
-                    var addTag = null;                                        // In HTML we need separate tage for sub/sup scripts
+                    let addTag = null;                                        // In HTML we need separate tage for sub/sup scripts
                     if (run.verticalAlignment == "subscript") {
                         addTag = "sub";
                     } else if (run.verticalAlignment == "superscript") {
                         addTag = "sup";
                     }
+                    
                     if (addTag) {
-                        result += "<" + addTag + ">" + child.value + "</" + addTag + ">";
+                        result += `<${addTag}>${child.value}</${addTag}>`;
                     } else {
                         result += child.value;
                     }
                     break
                 case "image":
-                    var imgSrc = window.sessionStorage.getItem(child.id)
-                    result += "<img src=\"" + imgSrc + "\" alt=\"image from document\" width=\"" 
-                            + child.cx + "\"pt height=\"" + child.cy + "pt\">"
+                    let imgSrc = window.sessionStorage.getItem(child.id)
+                    result += `<img src=" ${imgSrc}" alt="image from document" width="` 
+                            + `${child.cx}pt" height="${child.cy}pt">`
                     break
                 case "break":
                     result += "<br>"
                     break
                 case "commentReference":
-                    result += '<a name="' + child.commentId+ '"/>'
+                    result += `<a name="${child.commentId}"/>`
                     break
                 case "symbol":
                     let code = parseInt(child.char, 16) - parseInt("f000", 16)
@@ -575,35 +561,30 @@ function makeHtml(documentResult) {
         
         result += "</span>";
         return(result);
-    }catch(error){
-        debugger;
-    }
     }
 
-
-    function convertTable(table) {
-        var result = "<table style=\"border-collapse:collapse; "
+    /**
+     * Converts table element into HTML equivalent
+     * @param {*} table 
+     * @returns {string} conversion result
+     */
+    const convertTable = (table) => {
+        let result = '<table style="border-collapse:collapse; '
         if (table.style) {
             if (table.style.align == "center") {
                 result += "margin-left: auto; margin-right: auto; "
             }
         }
-        result += "\">"
+        result += '">'
 
-        var tableTotalWidth = table.grid.reduce(function(sum, col) { return sum + col}, 0)
-        var columnsWidth = table.grid.map(function(col) { return col / tableTotalWidth * 100})
+        table.rows.forEach((tableRow) => {
+            let row = "<tr>";
 
-        table.rows.forEach(function(tableRow) {
-            var row = "<tr>";
-
-            tableRow.cells.forEach(function(tableCell, cellIndex) {
-                var cell = "<td"
-                            + " width=\"" + table.grid[cellIndex] / 3 * 4 + "px\""
-                            + " rowspan=\"" + tableCell.rowSpan.toString() 
-                            + "\" colspan=\"" + tableCell.colSpan.toString()
-                            + "\" style=\"";
+            tableRow.cells.forEach((tableCell, cellIndex) => {
+                let cell = "<td"
+                            + ` width="${table.grid[cellIndex] / 3 * 4}px" rowspan="${tableCell.rowSpan.toString()}" `
+                            + ` colspan="${tableCell.colSpan.toString()}" style="`;
                 if (tableCell.cellProps.borders) {
-                    //if (!table.style.stylingFlags.noHBand) {          // Это свойство должно убирать все границы, но почему-то оно активно всегда, даже когда границы есть
                         if (tableCell.cellProps.borders.top) {
                             cell += "border-top: " + tableCell.cellProps.borders.top.width + "pt "
                                     + tableCell.cellProps.borders.top.style + " " + tableCell.cellProps.borders.top.color + "; "
@@ -612,8 +593,7 @@ function makeHtml(documentResult) {
                             cell += "border-bottom: " + tableCell.cellProps.borders.bottom.width + "pt "
                                     + tableCell.cellProps.borders.bottom.style + " " + tableCell.cellProps.borders.bottom.color + "; "
                         }
-                    //}
-                    //if (!table.style.stylingFlags.noVBand) {
+
                         if (tableCell.cellProps.borders.left) {
                             cell += "border-left: " + tableCell.cellProps.borders.left.width + "pt "
                                     + tableCell.cellProps.borders.left.style + " " + tableCell.cellProps.borders.left.color + "; "
@@ -622,7 +602,6 @@ function makeHtml(documentResult) {
                             cell += "border-right: " + tableCell.cellProps.borders.right.width + "pt "
                                     + tableCell.cellProps.borders.right.style + " " + tableCell.cellProps.borders.right.color + "; "
                         }
-                    //}
                 }
                     if (table.style.cellsPadd) {
                         cell += "padding: " + table.style.cellsPadd.top + "pt "
@@ -642,4 +621,26 @@ function makeHtml(documentResult) {
         result += "</table>";
         return(result);
     }
+
+    const elementToHtmlConverters = {
+        "page": convertPageToHtml,
+        "paragraph": convertParagraphToHtml,
+        "run": convertRunToHtml,
+        "table": convertTable,
+        "hyperlink": (hyperLink) => {
+            return `<a href="${toString(hyperLink.href)}">${convertElementsToHtml(hyperLink.children)}<a>`
+        },
+        "bookmarkStart": (bookmark) => {return ""},             // Stub for w:bookmarkStart tag
+        "commentRangeStart": (element) => {
+            return(`<span class="commentArea" id="comment${element.commentId}" key="${element.commentId}">`)
+        },
+        "commentRangeEnd": (element) => {
+            return("</span>")
+        },
+        "sectPr": (sectPr) => {return ""}                       // Stub for w:sectPr tag
+    }
+    
+    return convertElementsToHtml(pages)
 }
+
+exports.convertToHtml = convertToHtml;
