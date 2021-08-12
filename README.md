@@ -26,7 +26,7 @@ Currently not supported:
 * Numberings with "number maps" (Like Roman numerals)
 
 # Installation
-    npm install jsDocxToHtml
+    npm i @ree_n/jsdocxtohtml
 # Usage
 Import the library and then call its convertToHtml() function.
 It will return a promise, that will contain a string with HTML and an array of document's comments when resolved.
